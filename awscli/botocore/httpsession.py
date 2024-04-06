@@ -277,6 +277,7 @@ class URLLib3Session:
         client_cert=None,
         proxies_config=None,
     ):
+        logger.debug(f"URLLib3Session: {sys._getframe().f_code.co_name}")
         self._verify = verify
         self._proxy_config = ProxyConfiguration(
             proxies=proxies, proxies_settings=proxies_config
@@ -445,6 +446,7 @@ class URLLib3Session:
                 conn.proxy_headers['host'] = host
 
             request_target = self._get_request_target(request.url, proxy_url)
+            logger.debug(f"URLLib3Session: {sys._getframe().f_code.co_name}, request.url = {request.url}, proxy_url = {proxy_url}, request_target = {request_target}")
             urllib_response = conn.urlopen(
                 method=request.method,
                 url=request_target,

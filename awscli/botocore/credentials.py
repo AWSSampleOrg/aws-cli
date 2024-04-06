@@ -16,6 +16,7 @@ import getpass
 import json
 import logging
 import os
+import sys
 import subprocess
 import threading
 import time
@@ -169,6 +170,7 @@ class ProfileProviderBuilder(object):
         self._sso_token_cache = sso_token_cache
 
     def providers(self, profile_name, disable_env_vars=False):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         return [
             self._create_web_identity_provider(
                 profile_name, disable_env_vars,
@@ -180,12 +182,14 @@ class ProfileProviderBuilder(object):
         ]
 
     def _create_process_provider(self, profile_name):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         return ProcessProvider(
             profile_name=profile_name,
             load_config=lambda: self._session.full_config,
         )
 
     def _create_shared_credential_provider(self, profile_name):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         credential_file = self._session.get_config_variable('credentials_file')
         return SharedCredentialProvider(
             profile_name=profile_name,
@@ -193,6 +197,7 @@ class ProfileProviderBuilder(object):
         )
 
     def _create_config_provider(self, profile_name):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         config_file = self._session.get_config_variable('config_file')
         return ConfigProvider(
             profile_name=profile_name,
@@ -200,6 +205,7 @@ class ProfileProviderBuilder(object):
         )
 
     def _create_web_identity_provider(self, profile_name, disable_env_vars):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         return AssumeRoleWithWebIdentityProvider(
             load_config=lambda: self._session.full_config,
             client_creator=_get_client_creator(
@@ -210,6 +216,7 @@ class ProfileProviderBuilder(object):
         )
 
     def _create_sso_provider(self, profile_name):
+        logger.debug(f"ProfileProviderBuilder: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         return SSOProvider(
             load_config=lambda: self._session.full_config,
             client_creator=self._session.create_client,
@@ -225,6 +232,7 @@ class ProfileProviderBuilder(object):
 
 
 def get_credentials(session):
+    logger.debug(sys._getframe().f_code.co_name)
     resolver = create_credential_resolver(session)
     return resolver.load_credentials()
 
@@ -248,6 +256,7 @@ def _serialize_if_needed(value, iso=False):
 
 
 def _get_client_creator(session, region_name):
+    logger.debug(f"{sys._getframe().f_code.co_name}, region_name = {region_name}")
     def client_creator(service_name, **kwargs):
         create_client_kwargs = {
             'region_name': region_name
@@ -259,7 +268,9 @@ def _get_client_creator(session, region_name):
 
 
 def create_assume_role_refresher(client, params):
+    logger.debug(f"{sys._getframe().f_code.co_name}, params = {params}")
     def refresh():
+        logger.debug(f"{sys._getframe().f_code.co_name}, in create_assume_role_refresher")
         response = client.assume_role(**params)
         credentials = response['Credentials']
         # We need to normalize the credential names to
@@ -305,6 +316,13 @@ class Credentials(object):
 
     def __init__(self, access_key, secret_key, token=None,
                  method=None):
+        logger.debug(f"Credentials: {sys._getframe().f_code.co_name}")
+        logger.debug({
+            "access_key": access_key,
+            "secret_key": secret_key,
+            "token": token,
+            "method": method
+        })
         self.access_key = access_key
         self.secret_key = secret_key
         self.token = token
@@ -1244,6 +1262,7 @@ class ConfigProvider(CredentialProvider):
         :param config_parser: A config parser callable.
 
         """
+        logger.debug(f"ConfigProvider: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         self._config_filename = config_filename
         self._profile_name = profile_name
         if config_parser is None:
@@ -1647,6 +1666,7 @@ class AssumeRoleWithWebIdentityProvider(CredentialProvider):
             disable_env_vars=False,
             token_loader_cls=None,
     ):
+        logger.debug(f"AssumeRoleWithWebIdentityProvider: {sys._getframe().f_code.co_name}, profile_name = {profile_name}")
         self.cache = cache
         self._load_config = load_config
         self._client_creator = client_creator
@@ -1815,6 +1835,7 @@ class ContainerProvider(CredentialProvider):
     ENV_VAR_AUTH_TOKEN_FILE = 'AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE'
 
     def __init__(self, environ=None, fetcher=None):
+        logger.debug(f"ContainerProvider: {sys._getframe().f_code.co_name}")
         if environ is None:
             environ = os.environ
         if fetcher is None:
@@ -1891,6 +1912,7 @@ class CredentialResolver(object):
         :param providers: A list of ``CredentialProvider`` instances.
 
         """
+        logger.debug(f"CredentialResolver: {sys._getframe().f_code.co_name}")
         self.providers = providers
 
     def insert_before(self, name, credential_provider):
@@ -1991,6 +2013,7 @@ class SSOCredentialFetcher(CachedCredentialFetcher):
                  client_creator, token_loader=None, cache=None,
                  expiry_window_seconds=None, token_provider=None,
                  sso_session_name=None):
+        logger.debug(f"SSOCredentialFetcher: {sys._getframe().f_code.co_name}")
         self._client_creator = client_creator
         self._sso_region = sso_region
         self._role_name = role_name
@@ -2087,6 +2110,7 @@ class SSOProvider(CredentialProvider):
 
     def __init__(self, load_config, client_creator, profile_name,
                  cache=None, token_cache=None, token_provider=None):
+        logger.debug(f"SSOProvider: {sys._getframe().f_code.co_name}")
         if token_cache is None:
             token_cache = JSONFileCache(self._SSO_TOKEN_CACHE_DIR)
         self._token_cache = token_cache

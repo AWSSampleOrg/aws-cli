@@ -16,6 +16,7 @@ import logging
 import os
 import threading
 import time
+import sys
 
 from botocore import parsers
 from botocore.awsrequest import create_request_object
@@ -81,6 +82,7 @@ class Endpoint(object):
     """
     def __init__(self, host, endpoint_prefix, event_emitter,
                  response_parser_factory=None, http_session=None):
+        logger.debug(f"Endpoint: {sys._getframe().f_code.co_name}, endpoint_prefix = {endpoint_prefix}")
         self._endpoint_prefix = endpoint_prefix
         self._event_emitter = event_emitter
         self.host = host
@@ -93,6 +95,7 @@ class Endpoint(object):
             self.http_session = URLLib3Session()
 
     def __repr__(self):
+        logger.debug(f"Endpoint: {sys._getframe().f_code.co_name}")
         return '%s(%s)' % (self._endpoint_prefix, self.host)
 
     def make_request(self, operation_model, request_dict):
@@ -101,6 +104,7 @@ class Endpoint(object):
         return self._send_request(request_dict, operation_model)
 
     def create_request(self, params, operation_model=None):
+        logger.debug(f"Endpoint: {sys._getframe().f_code.co_name}")
         request = create_request_object(params)
         if operation_model:
             request.stream_output = any([
@@ -127,6 +131,7 @@ class Endpoint(object):
         return request.prepare()
 
     def _send_request(self, request_dict, operation_model):
+        logger.debug(f"Endpoint: {sys._getframe().f_code.co_name}")
         attempts = 1
         request = self.create_request(request_dict, operation_model)
         context = request_dict['context']
@@ -273,6 +278,7 @@ class Endpoint(object):
 
 class EndpointCreator(object):
     def __init__(self, event_emitter):
+        logger.debug(f"EndpointCreator: {sys._getframe().f_code.co_name}")
         self._event_emitter = event_emitter
 
     def create_endpoint(self, service_model, region_name, endpoint_url,
@@ -284,6 +290,7 @@ class EndpointCreator(object):
                         socket_options=None,
                         client_cert=None,
                         proxies_config=None):
+        logger.debug(f"EndpointCreator: {sys._getframe().f_code.co_name}")
         if not is_valid_endpoint_url(endpoint_url):
 
             raise ValueError("Invalid endpoint: %s" % endpoint_url)
@@ -311,11 +318,13 @@ class EndpointCreator(object):
         )
 
     def _get_proxies(self, url):
+        logger.debug(f"EndpointCreator: {sys._getframe().f_code.co_name}")
         # We could also support getting proxies from a config file,
         # but for now proxy support is taken from the environment.
         return get_environ_proxies(url)
 
     def _get_verify_value(self, verify):
+        logger.debug(f"EndpointCreator: {sys._getframe().f_code.co_name}")
         # This is to account for:
         # https://github.com/kennethreitz/requests/issues/1436
         # where we need to honor REQUESTS_CA_BUNDLE because we're creating our

@@ -11,6 +11,9 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 import copy
+import logging
+import sys
+import json
 
 from botocore.compat import OrderedDict
 from botocore.endpoint import DEFAULT_TIMEOUT, MAX_POOL_CONNECTIONS
@@ -21,6 +24,7 @@ from botocore.exceptions import (
     InvalidS3AddressingStyleError,
 )
 
+logger = logging.getLogger(__name__)
 
 class Config(object):
     """Advanced configuration for Botocore clients.
@@ -208,12 +212,16 @@ class Config(object):
     ])
 
     def __init__(self, *args, **kwargs):
+        logger.debug(f"Config: {sys._getframe().f_code.co_name}")
         self._user_provided_options = self._record_user_provided_options(
             args, kwargs)
+        logger.debug(f"kwargs = {json.dumps(kwargs, indent=4)}")
+        logger.debug(f"self._user_provided_options = {json.dumps(self._user_provided_options, indent=4)}")
 
         # Merge the user_provided options onto the default options
         config_vars = copy.copy(self.OPTION_DEFAULTS)
         config_vars.update(self._user_provided_options)
+        logger.debug(f"self._user_provided_options = {json.dumps(self._user_provided_options, indent=4)}")
 
         # Set the attributes based on the config_vars
         for key, value in config_vars.items():

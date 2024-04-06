@@ -83,10 +83,12 @@ u''.encode('idna')
 
 
 def main():
+    LOG.debug(sys._getframe().f_code.co_name)
     return AWSCLIEntryPoint().main(sys.argv[1:])
 
 
 def create_clidriver(args=None):
+    LOG.debug(sys._getframe().f_code.co_name)
     debug = None
     if args is not None:
         parser = FirstPassGlobalArgParser()
@@ -158,10 +160,12 @@ def no_pager_handler(session, parsed_args, **kwargs):
 
 class AWSCLIEntryPoint:
     def __init__(self, driver=None):
+        LOG.debug(f"AWSCLIEntryPoint: {sys._getframe().f_code.co_name}")
         self._error_handler = construct_entry_point_handlers_chain()
         self._driver = driver
 
     def main(self, args):
+        LOG.debug(f"AWSCLIEntryPoint: {sys._getframe().f_code.co_name}")
         try:
             rc = self._do_main(args)
         except BaseException as e:
@@ -176,10 +180,12 @@ class AWSCLIEntryPoint:
         return rc
 
     def _run_driver(self, driver, args, prompt_mode):
+        LOG.debug(f"AWSCLIEntryPoint: {sys._getframe().f_code.co_name}")
         driver.session.user_agent_extra += " prompt/%s" % prompt_mode
         return driver.main(args)
 
     def _do_main(self, args):
+        LOG.debug(f"AWSCLIEntryPoint: {sys._getframe().f_code.co_name}")
         driver = self._driver
         if driver is None:
             driver = create_clidriver(args)
@@ -204,6 +210,7 @@ class CLIDriver(object):
 
     def __init__(self, session=None, error_handler=None,
                  debug=False):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         if session is None:
             self.session = botocore.session.get_session()
             _set_user_agent_for_session(self.session)
@@ -221,6 +228,7 @@ class CLIDriver(object):
         self.alias_loader = AliasLoader()
 
     def _update_config_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         config_store = self.session.get_component('config_store')
         config_store.set_config_provider(
             'region',
@@ -244,6 +252,7 @@ class CLIDriver(object):
         )
 
     def _construct_cli_region_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         providers = [
             InstanceVarProvider(
                 instance_var='region',
@@ -266,6 +275,7 @@ class CLIDriver(object):
         return ChainProvider(providers=providers)
 
     def _construct_cli_output_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         providers = [
             InstanceVarProvider(
                 instance_var='output',
@@ -284,6 +294,7 @@ class CLIDriver(object):
         return ChainProvider(providers=providers)
 
     def _construct_cli_pager_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         providers = [
             EnvironmentProvider(
                 name='AWS_PAGER',
@@ -302,6 +313,7 @@ class CLIDriver(object):
         return ChainProvider(providers=providers)
 
     def _construct_cli_binary_format_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         providers = [
             ScopedConfigProvider(
                 config_var_name='cli_binary_format',
@@ -312,6 +324,7 @@ class CLIDriver(object):
         return ChainProvider(providers=providers)
 
     def _construct_cli_auto_prompt_chain(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         providers = [
             InstanceVarProvider(
                 instance_var='cli_auto_prompt',
@@ -331,30 +344,36 @@ class CLIDriver(object):
 
     @property
     def subcommand_table(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         return self._get_command_table()
 
     @property
     def arg_table(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         return self._get_argument_table()
 
     @property
     def error_handler(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         return self._error_handler
 
     def _get_cli_data(self):
         # Not crazy about this but the data in here is needed in
         # several places (e.g. MainArgParser, ProviderHelp) so
         # we load it here once.
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         if self._cli_data is None:
             self._cli_data = self.session.get_data('cli')
         return self._cli_data
 
     def _get_command_table(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         if self._command_table is None:
             self._command_table = self._build_command_table()
         return self._command_table
 
     def _get_argument_table(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         if self._argument_table is None:
             self._argument_table = self._build_argument_table()
         return self._argument_table
@@ -367,6 +386,7 @@ class CLIDriver(object):
         :return: The parser object
 
         """
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         command_table = self._build_builtin_commands(self.session)
         self.session.emit('building-command-table.main',
                           command_table=command_table,
@@ -375,6 +395,7 @@ class CLIDriver(object):
         return command_table
 
     def _build_builtin_commands(self, session):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         commands = OrderedDict()
         services = session.get_available_services()
         for service_name in services:
@@ -384,11 +405,13 @@ class CLIDriver(object):
         return commands
 
     def _add_aliases(self, command_table, parser):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         injector = AliasCommandInjector(
             self.session, self.alias_loader)
         injector.inject_aliases(command_table, parser)
 
     def _build_argument_table(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         argument_table = OrderedDict()
         cli_data = self._get_cli_data()
         cli_arguments = cli_data.get('options', None)
@@ -405,6 +428,7 @@ class CLIDriver(object):
         return argument_table
 
     def _create_cli_argument(self, option_name, option_params):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         return CustomArgument(
             option_name, help_text=option_params.get('help', ''),
             dest=option_params.get('dest'),
@@ -415,6 +439,7 @@ class CLIDriver(object):
             cli_type_name=option_params.get('type'))
 
     def create_help_command(self):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         cli_data = self._get_cli_data()
         return ProviderHelpCommand(self.session, self._get_command_table(),
                                    self._get_argument_table(),
@@ -423,6 +448,7 @@ class CLIDriver(object):
                                    cli_data.get('help_usage', None))
 
     def create_parser(self, command_table):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         # Also add a 'help' command.
         command_table['help'] = self.create_help_command()
         cli_data = self._get_cli_data()
@@ -441,6 +467,7 @@ class CLIDriver(object):
             args list of ``['s3', 'list-objects', '--bucket', 'foo']``.
 
         """
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         if args is None:
             args = sys.argv[1:]
         command_table = self._get_command_table()
@@ -476,6 +503,7 @@ class CLIDriver(object):
         # problematic because if something in CLIDriver caused the
         # session components to be reset (such as session.profile = foo)
         # then all the prior registered components would be removed.
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         self.session.emit(
             'session-initialized', session=self.session,
             parsed_args=parsed_args)
@@ -486,6 +514,7 @@ class CLIDriver(object):
         sys.stderr.write('\n')
 
     def _handle_top_level_args(self, args):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         emit_top_level_args_parsed_event(self.session, args)
         if getattr(args, 'profile', False):
             self.session.set_config_variable('profile', args.profile)
@@ -494,6 +523,7 @@ class CLIDriver(object):
         self._set_logging(getattr(args, 'debug', False))
 
     def _set_logging(self, debug):
+        LOG.debug(f"CLIDriver: {sys._getframe().f_code.co_name}")
         loggers_list = ['botocore', 'awscli', 's3transfer', 'urllib3']
         if debug:
             for logger_name in loggers_list:
@@ -533,6 +563,7 @@ class ServiceCommand(CLICommand):
         # we want users/external things to be able to rename the cli name
         # but *not* the service name, as this has to be exactly what
         # botocore expects.
+        LOG.debug(f"ServiceCommand: {sys._getframe().f_code.co_name}")
         self._name = cli_name
         self.session = session
         self._command_table = None
@@ -595,6 +626,7 @@ class ServiceCommand(CLICommand):
         return command_table[parsed_args.operation](remaining, parsed_globals)
 
     def _create_command_table(self):
+        LOG.debug(f"ServiceCommand: {sys._getframe().f_code.co_name}")
         command_table = OrderedDict()
         service_model = self._get_service_model()
         for operation_name in service_model.operation_names:
@@ -615,11 +647,13 @@ class ServiceCommand(CLICommand):
         return command_table
 
     def _add_lineage(self, command_table):
+        LOG.debug(f"ServiceCommand: {sys._getframe().f_code.co_name}")
         for command in command_table:
             command_obj = command_table[command]
             command_obj.lineage = self.lineage + [command_obj]
 
     def create_help_command(self):
+        LOG.debug(f"ServiceCommand: {sys._getframe().f_code.co_name}")
         command_table = self._get_command_table()
         return ServiceHelpCommand(session=self.session,
                                   obj=self._get_service_model(),
@@ -629,6 +663,7 @@ class ServiceCommand(CLICommand):
                                   name=self._name)
 
     def create_parser(self):
+        LOG.debug(f"ServiceCommand: {sys._getframe().f_code.co_name}")
         command_table = self._get_command_table()
         # Also add a 'help' command.
         command_table['help'] = self.create_help_command()
@@ -673,6 +708,7 @@ class ServiceOperation(object):
         :param session: The session object.
 
         """
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         self._arg_table = None
         self._name = name
         # These is used so we can figure out what the proper event
@@ -708,6 +744,7 @@ class ServiceOperation(object):
         return [cmd.name for cmd in self.lineage]
 
     def _build_subcommand_table(self):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         subcommand_table = OrderedDict()
         full_name = '_'.join([c.name for c in self.lineage])
         self._session.emit(
@@ -720,6 +757,7 @@ class ServiceOperation(object):
 
     @property
     def subcommand_table(self):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         # There's no subcommands for an operation so we return an
         # empty dictionary.
         if self._subcommand_table is None:
@@ -728,17 +766,20 @@ class ServiceOperation(object):
 
     @property
     def arg_table(self):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         if self._arg_table is None:
             self._arg_table = self._create_argument_table()
         return self._arg_table
 
     def _parse_potential_subcommand(self, args, subcommand_table):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         if subcommand_table:
             parser = SubCommandArgParser(self.arg_table, subcommand_table)
             return parser.parse_known_args(args)
         return None
 
     def __call__(self, args, parsed_globals):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         # Once we know we're trying to call a particular operation
         # of a service we can go ahead and load the parameters.
         event = 'before-building-argument-table-parser.%s.%s' % \
@@ -801,6 +842,7 @@ class ServiceOperation(object):
                 call_parameters, parsed_globals)
 
     def create_help_command(self):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         return OperationHelpCommand(
             self._session,
             operation_model=self._operation_model,
@@ -808,12 +850,14 @@ class ServiceOperation(object):
             name=self._name, event_class='.'.join(self.lineage_names))
 
     def _add_help(self, parser):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         # The 'help' output is processed a little differently from
         # the operation help because the arg_table has
         # CLIArguments for values.
         parser.add_argument('help', nargs='?')
 
     def _build_call_parameters(self, args, arg_table):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         # We need to convert the args specified on the command
         # line as valid **kwargs we can hand to botocore.
         service_params = {}
@@ -829,6 +873,7 @@ class ServiceOperation(object):
         return service_params
 
     def _unpack_arg(self, cli_argument, value):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         # Unpacks a commandline argument into a Python value by firing the
         # load-cli-arg.service-name.operation-name event.
         session = self._session
@@ -839,6 +884,7 @@ class ServiceOperation(object):
                                cli_argument, value)
 
     def _create_argument_table(self):
+        LOG.debug(f"ServiceOperation: {sys._getframe().f_code.co_name}")
         argument_table = OrderedDict()
         input_shape = self._operation_model.input_shape
         required_arguments = []
@@ -895,6 +941,7 @@ class CLIOperationCaller(object):
     """Call an AWS operation and format the response."""
 
     def __init__(self, session):
+        LOG.debug(f"CLIOperationCaller: {sys._getframe().f_code.co_name}")
         self._session = session
         self._output_stream_factory = OutputStreamFactory(session)
 
@@ -922,6 +969,7 @@ class CLIOperationCaller(object):
             value is returned.
 
         """
+        LOG.debug(f"CLIOperationCaller: {sys._getframe().f_code.co_name}")
         client = self._session.create_client(
             service_name, region_name=parsed_globals.region,
             endpoint_url=parsed_globals.endpoint_url,
@@ -933,6 +981,7 @@ class CLIOperationCaller(object):
 
     def _make_client_call(self, client, operation_name, parameters,
                           parsed_globals):
+        LOG.debug(f"CLIOperationCaller: {sys._getframe().f_code.co_name}")
         py_operation_name = xform_name(operation_name)
         if client.can_paginate(py_operation_name) and parsed_globals.paginate:
             paginator = client.get_paginator(py_operation_name)
@@ -944,6 +993,7 @@ class CLIOperationCaller(object):
 
     def _display_response(self, command_name, response,
                           parsed_globals):
+        LOG.debug(f"CLIOperationCaller: {sys._getframe().f_code.co_name}")
         output = parsed_globals.output
         if output is None:
             output = self._session.get_config_variable('output')

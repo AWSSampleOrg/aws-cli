@@ -13,6 +13,11 @@
 """Abstractions to interact with service models."""
 from collections import defaultdict
 from typing import NamedTuple, Union
+import sys
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from botocore.compat import OrderedDict
 from botocore.exceptions import (
@@ -82,6 +87,7 @@ class Shape(object):
             to resolve a shape is made.
 
         """
+        logger.debug(f"Shape: {sys._getframe().f_code.co_name}")
         self.name = shape_name
         self.type_name = shape_model['type']
         self.documentation = shape_model.get('documentation', '')

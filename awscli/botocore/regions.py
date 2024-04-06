@@ -20,6 +20,8 @@ import copy
 import logging
 import re
 from enum import Enum
+import json
+import sys
 
 from botocore import UNSIGNED, xform_name
 from botocore.auth import AUTH_TYPE_MAPS
@@ -119,12 +121,14 @@ class EndpointResolver(BaseEndpointResolver):
         :param uses_builtin_data: Whether the endpoint data originates in the
             package's data directory.
         """
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}")
         if 'partitions' not in endpoint_data:
             raise ValueError('Missing "partitions" in endpoint data')
         self._endpoint_data = endpoint_data
         self.uses_builtin_data = uses_builtin_data
 
     def get_service_endpoints_data(self, service_name, partition_name='aws'):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}, service_name = {service_name}, partition_name={partition_name}")
         for partition in self._endpoint_data['partitions']:
             if partition['partition'] != partition_name:
                 continue
@@ -168,6 +172,7 @@ class EndpointResolver(BaseEndpointResolver):
         partition_name,
         endpoint_variant_tags=None
     ):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name},partition_name={partition_name}")
         for partition in self._endpoint_data['partitions']:
             if partition['partition'] == partition_name:
                 if endpoint_variant_tags:
@@ -187,6 +192,14 @@ class EndpointResolver(BaseEndpointResolver):
         use_dualstack_endpoint=False,
         use_fips_endpoint=False
     ):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}")
+        LOG.debug(json.dumps({
+            "service_name": service_name,
+            "region_name": region_name,
+            "partition_name": partition_name,
+            "use_dualstack_endpoint": use_dualstack_endpoint,
+            "use_fips_endpoint": use_fips_endpoint
+        }, indent=4))
         if (
             service_name == 's3'
             and use_dualstack_endpoint
@@ -223,6 +236,7 @@ class EndpointResolver(BaseEndpointResolver):
                 return result
 
     def get_partition_for_region(self, region_name):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}, region_name = {region_name}")
         for partition in self._endpoint_data['partitions']:
             if self._region_match(partition, region_name):
                 return partition['partition']
@@ -234,6 +248,7 @@ class EndpointResolver(BaseEndpointResolver):
     def _endpoint_for_partition(self, partition, service_name, region_name,
                                 use_dualstack_endpoint, use_fips_endpoint,
                                 force_partition=False):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}")
         partition_name = partition["partition"]
         if (use_dualstack_endpoint and
                 partition_name in self._UNSUPPORTED_DUALSTACK_PARTITIONS):
@@ -279,6 +294,7 @@ class EndpointResolver(BaseEndpointResolver):
             return self._resolve(**resolve_kwargs)
 
     def _region_match(self, partition, region_name):
+        LOG.debug(f"EndpointResolver: {sys._getframe().f_code.co_name}, region_name = {region_name}")
         if region_name in partition['regions']:
             return True
         if 'regionRegex' in partition:

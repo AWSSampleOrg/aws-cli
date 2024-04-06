@@ -103,6 +103,7 @@ which don't represent the actual service api.
 """
 import logging
 import os
+import sys
 
 from botocore import BOTOCORE_ROOT
 from botocore.compat import OrderedDict, json
@@ -161,6 +162,7 @@ class JSONFileLoader(object):
         :return: The loaded data if it exists, otherwise None.
 
         """
+        logger.debug(f"JSONFileLoader: {sys._getframe().f_code.co_name}, file_path = {file_path}")
         full_path = file_path + '.json'
         if not os.path.isfile(full_path):
             return
@@ -188,6 +190,7 @@ def create_loader(search_path_string=None):
     :return: A ``Loader`` instance.
 
     """
+    logger.debug(f"{sys._getframe().f_code.co_name}, search_path_string = {search_path_string}")
     if search_path_string is None:
         return Loader()
     paths = []
@@ -218,6 +221,7 @@ class Loader(object):
     def __init__(self, extra_search_paths=None, file_loader=None,
                  cache=None, include_default_search_paths=True,
                  include_default_extras=True):
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         self._cache = {}
         if file_loader is None:
             file_loader = self.FILE_LOADER_CLASS()
@@ -263,6 +267,7 @@ class Loader(object):
             be sorted.
 
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         services = set()
         for possible_path in self._potential_locations():
             # Any directory in the search path is potentially a service.
@@ -306,6 +311,7 @@ class Loader(object):
             ``DataNotFoundError`` exception will be raised.
 
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         return max(self.list_api_versions(service_name, type_name))
 
     @instance_cache
@@ -323,6 +329,7 @@ class Loader(object):
         :return: A list of API version strings in sorted order.
 
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         known_api_versions = set()
         for possible_path in self._potential_locations(service_name,
                                                        must_exist=True,
@@ -368,6 +375,7 @@ class Loader(object):
 
         :return: The loaded data, as a python type (e.g. dict, list, etc).
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         # Wrapper around the load_data.  This will calculate the path
         # to call load_data with.
         known_services = self.list_available_services(type_name)
@@ -411,6 +419,7 @@ class Loader(object):
             where the data was loaded from. If no data could be found then a
             DataNotFoundError is raised.
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         for possible_path in self._potential_locations(name):
             found = self.file_loader.load_file(possible_path)
             if found is not None:
@@ -435,11 +444,13 @@ class Loader(object):
         :return: The loaded data. If no data could be found then
             a DataNotFoundError is raised.
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}, name = {name}")
         data, _ = self.load_data_with_path(name)
         return data
 
     def _potential_locations(self, name=None, must_exist=False,
                              is_dir=False):
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         # Will give an iterator over the full path of potential locations
         # according to the search path.
         for path in self.search_paths:
@@ -467,6 +478,7 @@ class Loader(object):
 
         :return: Whether the given path is within the package's data directory.
         """
+        logger.debug(f"Loader: {sys._getframe().f_code.co_name}")
         path = os.path.expanduser(os.path.expandvars(path))
         return path.startswith(self.BUILTIN_DATA_PATH)
 
@@ -482,10 +494,12 @@ class ExtrasProcessor(object):
         :type extra_models: iterable of dict
         :param extra_models: A list of loaded extras models.
         """
+        logger.debug(f"ExtrasProcessor: {sys._getframe().f_code.co_name}")
         for extras in extra_models:
             self._process(original_model, extras)
 
     def _process(self, model, extra_model):
+        logger.debug(f"ExtrasProcessor: {sys._getframe().f_code.co_name}")
         """Process a single extras model into a service model."""
         if 'merge' in extra_model:
             deep_merge(model, extra_model['merge'])

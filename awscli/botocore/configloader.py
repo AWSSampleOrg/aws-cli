@@ -15,10 +15,12 @@ import copy
 import os
 import shlex
 import sys
+import logging
 
 import botocore.exceptions
 from botocore.compat import six
 
+logger = logging.getLogger(__name__)
 
 def multi_file_load_config(*filenames):
     """Load and combine multiple INI configs with profiles.
@@ -68,6 +70,8 @@ def multi_file_load_config(*filenames):
     from FileC.
 
     """
+    logger.debug(sys._getframe().f_code.co_name)
+    logger.debug(f"filenames: {filenames}")
     configs = []
     profiles = []
     for filename in filenames:
@@ -282,4 +286,6 @@ def build_profile_map(parsed_ini_config):
     final_config['profiles'] = profiles
     final_config['sso_sessions'] = sso_sessions
     final_config['services'] = services
+    logger.debug(sys._getframe().f_code.co_name)
+    logger.debug(f"final_config = {final_config}")
     return final_config

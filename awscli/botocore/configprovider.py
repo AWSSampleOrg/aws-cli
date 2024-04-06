@@ -16,6 +16,8 @@ is loaded.
 import copy
 import logging
 import os
+import sys
+import json
 
 from botocore import utils
 from botocore.exceptions import InvalidConfigError
@@ -212,6 +214,7 @@ class ConfigChainFactory(object):
         :param environ: A mapping to use for environment variables. If this
             is not provided it will default to use os.environ.
         """
+        logger.debug(f"ConfigChainFactory: {sys._getframe().f_code.co_name}")
         self._session = session
         if environ is None:
             environ = os.environ
@@ -257,6 +260,13 @@ class ConfigChainFactory(object):
             config_property_name -> default. Any values that were none are
             omitted form the chain.
         """
+        logger.debug(f"ConfigChainFactory: {sys._getframe().f_code.co_name}")
+        logger.debug(json.dumps({
+            "instance_name": instance_name,
+            "env_var_names": env_var_names,
+            "config_property_names": config_property_names,
+            "default": default
+        }, indent=4))
         providers = []
         if instance_name is not None:
             providers.append(

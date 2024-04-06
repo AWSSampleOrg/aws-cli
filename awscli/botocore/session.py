@@ -23,6 +23,7 @@ import platform
 import re
 import socket
 import warnings
+import sys
 
 import botocore.client
 import botocore.configloader
@@ -103,6 +104,7 @@ class Session(object):
             the session is created.
 
         """
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         if event_hooks is None:
             self._events = HierarchicalEmitter()
         else:
@@ -135,6 +137,7 @@ class Session(object):
             self.session_var_map.update(session_vars)
 
     def _register_components(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._register_credential_provider()
         self._register_token_provider()
         self._register_data_loader()
@@ -146,32 +149,40 @@ class Session(object):
         self._register_monitor()
 
     def _register_event_emitter(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._components.register_component('event_emitter', self._events)
 
     def _register_token_provider(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._components.lazy_register_component(
             'token_provider', self._create_token_resolver
         )
 
     def _create_token_resolver(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         return botocore.tokens.create_token_resolver(self)
 
     def _register_credential_provider(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._components.lazy_register_component(
             'credential_provider', self._create_credential_resolver)
 
     def _create_credential_resolver(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         return botocore.credentials.create_credential_resolver(
             self, region_name=self._last_client_region_used
         )
 
     def _register_data_loader(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._components.lazy_register_component(
             'data_loader',
             lambda:  create_loader(self.get_config_variable('data_path')))
 
     def _register_endpoint_resolver(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         def create_default_resolver():
+            logger.debug(f"Session: {sys._getframe().f_code.co_name}")
             loader = self.get_component('data_loader')
             endpoints, path = loader.load_data_with_path('endpoints')
             uses_builtin = loader.is_builtin_path(path)
@@ -180,14 +191,17 @@ class Session(object):
             'endpoint_resolver', create_default_resolver)
 
     def _register_response_parser_factory(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._components.register_component('response_parser_factory',
                                             ResponseParserFactory())
 
     def _register_exceptions_factory(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._internal_components.register_component(
             'exceptions_factory', ClientExceptionsFactory())
 
     def _register_builtin_handlers(self, events):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         for spec in handlers.BUILTIN_HANDLERS:
             if len(spec) == 2:
                 event_name, handler = spec
@@ -200,6 +214,7 @@ class Session(object):
                     self._events.register_last(event_name, handler)
 
     def _register_config_store(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         config_store_component = ConfigValueStore(
             mapping=create_botocore_default_config_mapping(self)
         )
@@ -207,10 +222,12 @@ class Session(object):
                                             config_store_component)
 
     def _register_monitor(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         self._internal_components.lazy_register_component(
             'monitor', self._create_csm_monitor)
 
     def _create_csm_monitor(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         if self.get_config_variable('csm_enabled'):
             client_id = self.get_config_variable('csm_client_id')
             host = self.get_config_variable('csm_host')
@@ -230,24 +247,28 @@ class Session(object):
 
     @property
     def available_profiles(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         return list(self._build_profile_map().keys())
 
     def _build_profile_map(self):
         # This will build the profile map if it has not been created,
         # otherwise it will return the cached value.  The profile map
         # is a list of profile names, to the config values for the profile.
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         if self._profile_map is None:
             self._profile_map = self.full_config['profiles']
         return self._profile_map
 
     @property
     def profile(self):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}")
         if self._profile is None:
             profile = self.get_config_variable('profile')
             self._profile = profile
         return self._profile
 
     def get_config_variable(self, logical_name, methods=None):
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}, logical_name = {logical_name}")
         if methods is not None:
             return self._get_config_variable_with_custom_methods(
                 logical_name, methods)
@@ -261,6 +282,7 @@ class Session(object):
         # being added to the chain. This chain will be consulted for a value
         # and then thrown out. This is not efficient, nor is the methods arg
         # used in botocore, this is just for backwards compatibility.
+        logger.debug(f"Session: {sys._getframe().f_code.co_name}, logical_name = {logical_name}")
         chain_builder = SubsetChainConfigFactory(session=self, methods=methods)
         mapping = create_botocore_default_config_mapping(self)
         for name, config_options in self.session_var_map.items():
@@ -1030,6 +1052,7 @@ class SubsetChainConfigFactory(object):
     chain.
     """
     def __init__(self, session, methods, environ=None):
+        logger.debug(f"SubsetChainConfigFactory: {sys._getframe().f_code.co_name}")
         self._factory = ConfigChainFactory(session, environ)
         self._supported_methods = methods
 
@@ -1045,6 +1068,7 @@ class SubsetChainConfigFactory(object):
         the custom ``methods`` argument for all the default botocore config
         variables when calling ``get_config_variable``.
         """
+        logger.debug(f"SubsetChainConfigFactory: {sys._getframe().f_code.co_name}")
         if 'instance' not in self._supported_methods:
             instance_name = None
         if 'env' not in self._supported_methods:
