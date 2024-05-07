@@ -17,6 +17,9 @@ import os
 if os.environ.get('LC_CTYPE', '') == 'UTF-8':
     os.environ['LC_CTYPE'] = 'en_US.UTF-8'
 import awscli.clidriver
+import awscli.tracer
+
+sys.settrace(awscli.tracer.trace_dispatch)
 
 
 def main():
@@ -24,4 +27,10 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    finally:
+        pass
+        with open(os.path.join(os.path.dirname(__file__), "output.csv"), "w") as fp:
+            fp.write(os.linesep.join(awscli.tracer.lines))
+        sys.settrace(None)
