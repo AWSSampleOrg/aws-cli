@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 from typing import TypedDict, Any
+import json
 
 OUTPUT_DIR = f"{os.path.dirname(__file__)}{os.sep}output"
 if os.path.exists(OUTPUT_DIR):
@@ -150,9 +151,11 @@ def generate_each_python_file(
 
 CsvRecords = TypedDict(
     "CsvRecords", {
+        "index": str,
         "file_path": str,
         "lineno": int,
         "event": str,
+        "class_name": str,
         "function_name": str,
         "local_variables": dict[str, Any]
     }
@@ -199,15 +202,28 @@ def parse_tsv_with_header(file: str) -> list[CsvRecords]:
     with open(file, "r") as fp:
         LOG_DATA = fp.read().splitlines()
 
-    header = ["file_path", "lineno", "event", "function_name", "local_variables"]
+    header = ["index", "file_path", "lineno", "event", "class_name", "function_name", "local_variables"]
     records = []
     for i in range(len(LOG_DATA)):
         record = LOG_DATA[i].split("\t")
         d = dict(zip(header, record))
+        d["index"] = int(d["index"])
         d["lineno"] = int(d["lineno"])
         records.append(d)
 
     return records
+
+def group_by_file_paths(records: list[CsvRecords]) -> dict[str, list[CsvRecords]]:
+    files = tuple(set([record["file_path"] for record in records]))
+    merged_files = {}
+    for f in files:
+        if f in merged_files:
+            continue
+        merged_files[f] = []
+        for record in records:
+            if record["file_path"] == f:
+                merged_files[f].append(record)
+    return merged_files
 
 def main(argc: int, argv: list[str]):
     file = sys.argv[1]
@@ -215,7 +231,25 @@ def main(argc: int, argv: list[str]):
         sys.stderr.write(f"{file} is not exists")
         sys.exit(1)
 
-    generate_index_html(parse_tsv_with_header(file))
+    records = parse_tsv_with_header(file)
+    generate_index_html(records)
+    common_path_prefix = os.path.commonprefix([record["file_path"] for record in records])
+    merged_files = group_by_file_paths(records)
+
+    for file_path, records in merged_files.items():
+        absolute_output_path = os.path.join(OUTPUT_DIR, file_path.replace(common_path_prefix, '') + ".log")
+
+        os.makedirs(os.path.dirname(absolute_output_path), exist_ok=True)
+        with open(absolute_output_path, "w") as fp:
+            output = []
+            for record in records:
+                d = record.copy()
+                d["location"] = f'{d["file_path"]}:{d["lineno"]}'
+                d["local_variables"] = d["local_variables"] if record["local_variables"] != "" else None
+                output.append(
+                    f'{d["index"]}\t{d["location"]}\t{d["event"]}\t{d["class_name"]}\t{d["function_name"]}\t{d["local_variables"]}'
+                )
+            fp.write(os.linesep.join(output))
 
 if __name__ == "__main__":
     argv = sys.argv[1:]

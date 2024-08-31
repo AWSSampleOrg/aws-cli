@@ -30,14 +30,15 @@ def is_builtin(file_path: str):
 def to_str(exp):
     """Turn an argument value into a string without dying on exceptions"""
     try:
-        var_type = type(exp)
-        if var_type in (str, int, float, bool, list, tuple, dict, set, frozenset):
-            return exp
-        return repr(exp)
+        if type(exp) == str:
+            return  { "type": "success", "result": '"' + exp.replace('"', '\"').replace('\n', '\\n') + '"' }
+        return { "type": "success", "result": '"' + repr(exp).replace('"', '\"') + '"' }
     except Exception:
-        return None
+        return { "type": "fail", "result": None }
 
+index = 1
 def trace_dispatch(frame: FrameType, event: str, arg):
+    global index
     file_path = os.path.abspath(frame.f_code.co_filename)
 
     if is_builtin(file_path=file_path):
@@ -49,11 +50,31 @@ def trace_dispatch(frame: FrameType, event: str, arg):
     if not os.path.exists(file_path):
         return
 
-    local_variables = {}
+    local_variables = ""
     for i in range(frame.f_code.co_argcount):
-        local_variables[frame.f_code.co_varnames[i]] = to_str(frame.f_locals[frame.f_code.co_varnames[i]])
+        if frame.f_code.co_varnames[i] == "self":
+            continue
+        value = to_str(frame.f_locals[frame.f_code.co_varnames[i]])
+        if value["type"] == "fail":
+            continue
+        result = value["result"]
+        if local_variables:
+            local_variables += ', '
+        else:
+            local_variables += '{'
+        local_variables += f'"{frame.f_code.co_varnames[i]}": '
+        local_variables += result
+        if i == frame.f_code.co_argcount - 1:
+            local_variables += '}'
 
-    fp.write(f"{file_path}\t{frame.f_lineno}\t{event}\t{frame.f_code.co_name}\t{local_variables}{os.linesep}")
+    class_name = None
+    try:
+        class_name = frame.f_locals['self'].__class__.__name__
+    except KeyError:
+        pass
+
+    fp.write(f"{index}\t{file_path}\t{frame.f_lineno}\t{event}\t{class_name}\t{frame.f_code.co_name}\t{local_variables}{os.linesep}")
+    index += 1
     return trace_dispatch
 
 
