@@ -1,0 +1,226 @@
+#!/usr/bin/env python
+import os
+import sys
+import shutil
+from typing import TypedDict
+
+OUTPUT_DIR = f"{os.path.dirname(__file__)}{os.sep}output"
+if os.path.exists(OUTPUT_DIR):
+    shutil.rmtree(OUTPUT_DIR)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+CsvRecords = TypedDict(
+    "CsvRecords", {
+        "index": str,
+        "file_path": str,
+        "lineno": int,
+        "event": str,
+        "class_name": str,
+        "function_name": str,
+        "local_variables": str,
+        "program_executed_index": int
+    }
+)
+
+def generate_each_python_file(
+        original_python_file_path: str,
+        output_python_html_path: str,
+        group_by_files: dict[str, list[CsvRecords]]
+    ):
+    absolute_output_path = os.path.join(OUTPUT_DIR, output_python_html_path)
+
+    if os.path.exists(absolute_output_path):
+        return
+
+    with open(original_python_file_path, "r") as fp:
+        SPLITTED_PYTHON_CODE = fp.readlines()
+
+    os.makedirs(os.path.dirname(absolute_output_path), exist_ok=True)
+    with open(absolute_output_path, "w") as fp:
+        output_records = []
+
+        file_info = group_by_files[original_python_file_path]
+
+        line_numbers_where_program_ran = [f["lineno"] for f in file_info]
+
+        for line_index in range(len(SPLITTED_PYTHON_CODE)):
+            found_index = line_numbers_where_program_ran.index(line_index + 1) if line_index + 1 in line_numbers_where_program_ran else -1
+
+            if found_index == -1:
+                output_columns = f"<td>{line_index + 1}</td>"
+                output_columns += "<td></td>"
+                output_columns += f"<td><pre><code class=\"language-python\">{SPLITTED_PYTHON_CODE[line_index]}</code></pre></td>"
+                output_columns += "<td></td>"
+                output_records.append(f"<tr class=\"tr-{line_index}\">{output_columns}</tr>")
+            else:
+                output_columns = f"<td class=\"program-ran\" id=\"{line_index + 1}\">{line_index + 1}</td>"
+                output_columns += f"<td class=\"program-ran\">{file_info[found_index]['program_executed_index']}</td>"
+                output_columns += f"<td><pre><code class=\"language-python program-ran\">{SPLITTED_PYTHON_CODE[line_index]}</code></pre></td>"
+                output_columns += f"<td><pre><code class=\"language-python program-ran\">{file_info[found_index]['local_variables']}</code></pre></td>"
+                output_records.append(f"<tr class=\"tr-{line_index}\">{output_columns}</tr>")
+
+        fp.write(
+            """<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Coverage</title>
+                <!-- TailWind CSS -->
+                <script src="https://cdn.tailwindcss.com"></script>
+                <!-- Highlight.js -->
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+                <script>hljs.highlightAll();</script>
+                <style>
+                pre code.hljs {
+                    display: block;
+                    overflow-x: auto;
+                }
+                .hljs {
+                    color: #444
+                }
+                .hljs-comment {
+                    color: #697070
+                }
+                .hljs-punctuation,.hljs-tag {
+                    color: #444a
+                }
+                .hljs-tag .hljs-attr,.hljs-tag .hljs-name {
+                    color: #444
+                }
+                .hljs-attribute,.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-name,.hljs-selector-tag {
+                    font-weight: 700
+                }
+                .hljs-deletion,.hljs-number,.hljs-quote,.hljs-selector-class,.hljs-selector-id,.hljs-string,.hljs-template-tag,.hljs-type {
+                    color: #800
+                }
+                .hljs-section,.hljs-title {
+                    color: #800;
+                    font-weight: 700
+                }
+                .hljs-link,.hljs-operator,.hljs-regexp,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-symbol,.hljs-template-variable,.hljs-variable {
+                    color: #ab5656
+                }
+                .hljs-literal {
+                    color: #695
+                }
+                .hljs-addition,.hljs-built_in,.hljs-bullet,.hljs-code {
+                    color: #397300
+                }
+                .hljs-meta {
+                    color: #1f7199
+                }
+                .hljs-meta .hljs-string {
+                    color: #38a
+                }
+                .hljs-emphasis {
+                    font-style: italic
+                }
+                .hljs-strong {
+                    font-weight: 700
+                }
+
+                /* additional */
+                .program-ran {
+                    background-color: rgba(255, 0, 0, 0.3);
+                }
+                .sticky_table thead th {
+                    position: -webkit-sticky;
+                    position: sticky;
+                    top: 0;
+                    z-index: 1;
+                    background-color: rgba(8, 8, 8, 1);
+                    color: rgba(240, 240, 240, 1);
+                }
+                </style>
+            </head>
+            <body>
+                <table class="sticky_table">
+                    <thead>
+                        <tr>
+                            <th align="left">lineno: Python</th>
+                            <th align="left">lineno: AWS CLI</th>
+                            <th align="left">Python source code</th>
+                            <th align="left">Local variables</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        """ + "".join(output_records) + """
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        """)
+
+def generate_html_files(common_path_prefix: str, records: list[CsvRecords], group_by_files: dict[str, list[CsvRecords]]) -> None:
+    for line_index in range(len(records)):
+        record = records[line_index]
+
+        file_path_suffix = record["file_path"].replace(common_path_prefix, '')
+        output_python_html_path = f"{file_path_suffix}.html"
+        generate_each_python_file(
+            original_python_file_path=record["file_path"],
+            output_python_html_path=output_python_html_path,
+            group_by_files=group_by_files
+        )
+
+def generate_log_files(common_path_prefix: str, group_by_files: dict[str, list[CsvRecords]]) -> None:
+    for file_path, records in group_by_files.items():
+        absolute_output_path = os.path.join(OUTPUT_DIR, file_path.replace(common_path_prefix, '') + ".log")
+
+        os.makedirs(os.path.dirname(absolute_output_path), exist_ok=True)
+        with open(absolute_output_path, "w") as fp:
+            output = []
+            for record in records:
+                d = record.copy()
+                d["location"] = f'{d["file_path"]}:{d["lineno"]}'
+                d["local_variables"] = d["local_variables"] if record["local_variables"] != "" else None
+                output.append(
+                    f'{d["index"]}\t{d["location"]}\t{d["event"]}\t{d["class_name"]}\t{d["function_name"]}\t{d["local_variables"]}'
+                )
+            fp.write(os.linesep.join(output))
+
+
+def parse_tsv_with_header(file: str) -> list[CsvRecords]:
+    with open(file, "r") as fp:
+        LOG_DATA = fp.read().splitlines()
+
+    header = ["index", "file_path", "lineno", "event", "class_name", "function_name", "local_variables"]
+    records = []
+    for i in range(len(LOG_DATA)):
+        record = LOG_DATA[i].split("\t")
+        d = dict(zip(header, record))
+        d["index"] = int(d["index"])
+        d["lineno"] = int(d["lineno"])
+        records.append(d)
+
+    return records
+
+def group_by_file_path(records: list[CsvRecords]) -> dict[str, list[CsvRecords]]:
+    group_by_files = {}
+    for line_index in range(len(records)):
+        record = records[line_index]
+        if record["file_path"] not in group_by_files:
+            group_by_files[record["file_path"]] = []
+        group_by_files[record["file_path"]].append({
+            **record,
+            "program_executed_index": line_index + 1
+        })
+    return group_by_files
+
+def main(argc: int, argv: list[str]):
+    file = sys.argv[1]
+    if not os.path.isfile(file):
+        sys.stderr.write(f"{file} is not exists")
+        sys.exit(1)
+
+    records = parse_tsv_with_header(file)
+    common_path_prefix = os.path.commonprefix([record["file_path"] for record in records])
+    group_by_files = group_by_file_path(records)
+
+    generate_html_files(common_path_prefix, records, group_by_files)
+    generate_log_files(common_path_prefix, group_by_files)
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    main(len(argv), argv)

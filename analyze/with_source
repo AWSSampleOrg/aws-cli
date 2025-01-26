@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+import os
+import sys
+from typing import TypedDict, Dict, List, Tuple
+from collections import defaultdict
+
+class CsvRecords(TypedDict):
+    "CsvRecords"
+    index: str
+    file_path: str
+    lineno: str
+    event: str
+    class_name: str
+    function_name: str
+    local_variables: str
+
+class FormattedRecords(TypedDict):
+    "FormattedRecords"
+    index: str
+    event: str
+    file_path_lineno: str
+    file_content: str
+
+def get_file_contents(file_line_map: Dict[str, List[int]]) -> Dict[Tuple[str, int], str]:
+    """
+    Efficiently reads required lines from files by reading each file only once
+    Args:
+        file_line_map: Dictionary mapping file paths to list of required line numbers
+    Returns:
+        Dictionary mapping (file_path, line_number) tuples to line contents
+    """
+    contents = {}
+    for file_path, line_numbers in file_line_map.items():
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                line_numbers = sorted(set(line_numbers))
+                line_number_idx = 0
+                for i, line in enumerate(f, 1):
+                    if line_number_idx >= len(line_numbers):
+                        break
+                    if i == line_numbers[line_number_idx]:
+                        contents[(file_path, i)] = line.rstrip()
+                        line_number_idx += 1
+        except Exception as e:
+            raise Exception(f"Error reading file: {file_path}, lineno") from e
+    return contents
+
+def parse_tsv_with_header(file: str) -> list[CsvRecords]:
+    with open(file, "r") as fp:
+        LOG_DATA = fp.read().splitlines()
+
+    header = ["index", "file_path", "lineno", "event", "class_name", "function_name", "local_variables"]
+    records = []
+    for i in range(len(LOG_DATA)):
+        record = LOG_DATA[i].split("\t")
+        d = dict(zip(header, record))
+        records.append(d)
+    return records
+
+def format_records(records: list[CsvRecords]) -> tuple[list[FormattedRecords], dict[str, int]]:
+    file_line_map = defaultdict(list)
+    for record in records:
+        file_line_map[record['file_path']].append(int(record['lineno']))
+
+    file_contents = get_file_contents(file_line_map)
+    formatted_records = []
+    max_widths = {
+        'index': 0,
+        'event': 0,
+        'file_path_lineno': 0,
+        'file_content': 0
+    }
+
+    for record in records:
+        file_path = record['file_path']
+        line_no = int(record['lineno'])
+        file_path_lineno = f"{file_path}:{line_no}"
+        file_content = file_contents.get((file_path, line_no), "")
+
+        new_record = {
+            'index': record['index'],
+            'event': record['event'],
+            'file_path_lineno': file_path_lineno,
+            'file_content': file_content
+        }
+
+        for key, value in new_record.items():
+            max_widths[key] = max(max_widths[key], len(str(value)))
+        formatted_records.append(new_record)
+
+    return formatted_records, max_widths
+
+def write_formatted_output(records: list[FormattedRecords],
+                       max_widths: dict[str, int],
+                       output_file: str) -> None:
+    columns = ['index', 'event', 'file_path_lineno', 'file_content']
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for record in records:
+            formatted_values = []
+            for key in columns:
+                value = str(record[key])
+                formatted_value = f"{value:<{max_widths[key]}}"
+                formatted_values.append(formatted_value)
+            line = '\t'.join(formatted_values)
+            f.write(f"{line}{os.linesep}")
+
+def main(argc: int, argv: list[str]):
+    if argc != 2:
+        print("Usage: with_source <input_file> <output_file>")
+        sys.exit(1)
+
+    input_file = argv[0]
+    output_file = argv[1]
+
+    if not os.path.isfile(input_file):
+        print(f"{input_file} does not exist")
+        sys.exit(1)
+
+    records = parse_tsv_with_header(input_file)
+    formatted_records, max_widths = format_records(records)
+    write_formatted_output(formatted_records, max_widths, output_file)
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    main(len(argv), argv)
