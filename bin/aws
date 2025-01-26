@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+# Copyright 2012 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+
+#     http://aws.amazon.com/apache2.0/
+
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+import sys
+import os
+
+if os.environ.get('LC_CTYPE', '') == 'UTF-8':
+    os.environ['LC_CTYPE'] = 'en_US.UTF-8'
+import awscli.clidriver
+from types import FrameType
+import re
+
+builtin_path = [ f for f in sys.path if (not re.match(r"/.+/lib/aws-cli/bin", f)) and (not re.match(r"/.+/lib/aws-cli/lib/.+/site-packages", f)) ]
+
+fp = open(f"{os.getcwd()}{os.sep}output.log", "w")
+
+def is_builtin(file_path: str):
+    return any([ file_path.startswith(f) for f in builtin_path ])
+
+
+index = 1
+def trace_dispatch(frame: FrameType, event: str, arg):
+    global index
+    file_path = os.path.abspath(frame.f_code.co_filename)
+
+    if is_builtin(file_path=file_path):
+        return
+    if "<frozen " in file_path:
+        return
+    if frame.f_code.co_name == "<module>":
+        return
+    if not os.path.exists(file_path):
+        return
+
+    local_variables = ""
+    for i in range(frame.f_code.co_argcount):
+        var_name = frame.f_code.co_varnames[i]
+        if var_name == "self":
+            continue
+        if local_variables:
+            local_variables += ', '
+        else:
+            local_variables += '{'
+        local_variables += f'"{var_name}": '
+
+        if os.linesep == "\n":
+            local_variables += repr(frame.f_locals[var_name]).replace("\n", "\\n")
+        else:
+            local_variables += repr(frame.f_locals[var_name]).replace("\r\n", "\\r\\n")
+        if i == frame.f_code.co_argcount - 1:
+            local_variables += '}'
+
+    class_name = None
+    if "self" in frame.f_locals:
+        class_name = frame.f_locals['self'].__class__.__name__
+
+    fp.write(
+        "\t".join([
+            str(index), file_path, str(frame.f_lineno), event, str(class_name), frame.f_code.co_name, local_variables
+        ]) + os.linesep
+    )
+    index += 1
+    return trace_dispatch
+
+
+sys.settrace(trace_dispatch)
+
+
+def main():
+    return awscli.clidriver.main()
+
+
+if __name__ == '__main__':
+    status = main()
+    sys.settrace(None)
+    sys.exit(status)

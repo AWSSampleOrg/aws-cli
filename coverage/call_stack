@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+import os
+import sys
+from typing import TypedDict
+
+CsvRecords = TypedDict(
+    "CsvRecords", {
+        "index": str,
+        "file_path": str,
+        "lineno": str,
+        "event": str,
+        "class_name": str,
+        "function_name": str,
+        "local_variables": str
+    }
+)
+
+def ljust_with_space(s: str, length: int) -> str:
+    return s.ljust(length, ' ')
+
+def generate_call_stacks(records: list[CsvRecords], arg_index: str):
+    stack_trace = []
+    for record in records:
+        if record["event"] == "call":
+            stack_trace.append(record)
+        elif record["event"] == "return":
+            stack_trace.pop()
+        if record["index"] == arg_index:
+            index_length = max([
+                len("index"),
+                max([
+                    len(str(f["index"])) for f in stack_trace
+                ])
+            ])
+            file_path__max_length = max([
+                len("path"),
+                max([
+                    len(f'{f["file_path"]}:{f["lineno"]}') for f in stack_trace
+                ])
+            ])
+            class_name_max_length = max([
+                len("class"),
+                max([
+                    len(f["class_name"]) for f in stack_trace
+                ])
+            ])
+            function_name_max_length = max([
+                len("function"),
+                max([
+                    len(f["function_name"]) for f in stack_trace
+                ])
+            ])
+
+            print(" | ".join([
+                ljust_with_space("index", index_length),
+                ljust_with_space("path", file_path__max_length),
+                ljust_with_space("class", class_name_max_length),
+                ljust_with_space("function", function_name_max_length)
+            ]))
+            print("-" * (index_length + file_path__max_length + class_name_max_length + function_name_max_length + 8))
+
+            for i in range(len(stack_trace) - 1, -1, -1):
+                stack = stack_trace[i]
+                index = ljust_with_space(stack["index"], index_length)
+                path = ljust_with_space(f'{stack["file_path"]}:{stack["lineno"]}', file_path__max_length)
+                class_name = ljust_with_space(stack["class_name"], class_name_max_length)
+                function_name = ljust_with_space(stack["function_name"], function_name_max_length)
+                print(" | ".join([index, path, class_name, function_name]))
+            return
+    print(f"can't find index={arg_index}")
+
+def parse_tsv_with_header(file: str) -> list[CsvRecords]:
+    with open(file, "r") as fp:
+        LOG_DATA = fp.read().splitlines()
+
+    header = ["index", "file_path", "lineno", "event", "class_name", "function_name", "local_variables"]
+    records = []
+    for i in range(len(LOG_DATA)):
+        record = LOG_DATA[i].split("\t")
+        d = dict(zip(header, record))
+        records.append(d)
+
+    return records
+
+def main(argc: int, argv: list[str]):
+    if argc != 2:
+        print(f"should pass outout.log path and index to search")
+        sys.exit(1)
+
+    file = sys.argv[1]
+    if not os.path.isfile(file):
+        print(f"{file} is not exists")
+        sys.exit(1)
+
+    index = sys.argv[2]
+    records = parse_tsv_with_header(file)
+    generate_call_stacks(records, index)
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    main(len(argv), argv)
